@@ -1,0 +1,20 @@
+[package]
+name = "expr"
+version = "1.17.8"
+edition = "2021"
+rust-version = "1.90"
+description = "Expression language and expression evaluation (a Rust port of github.com/expr-lang/expr)"
+license = "MIT"
+repository = "https://github.com/expr-lang/expr"
+publish = false
+
+[lib]
+name = "expr"
+path = "src/lib.rs"
+
+[[bin]]
+name = "expr"
+path = "src/main.rs"
+
+[dependencies]
+regex = "=1.13.1"

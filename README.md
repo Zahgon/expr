@@ -1,11 +1,8 @@
 <h1><a href="https://expr-lang.org"><img src="https://expr-lang.org/img/logo.png" alt="Zx logo" height="48"align="right"></a> Expr</h1>
 
-[![test](https://github.com/expr-lang/expr/actions/workflows/test.yml/badge.svg)](https://github.com/expr-lang/expr/actions/workflows/test.yml) 
-[![Go Report Card](https://goreportcard.com/badge/github.com/expr-lang/expr)](https://goreportcard.com/report/github.com/expr-lang/expr) 
-[![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/expr.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:expr)
-[![GoDoc](https://godoc.org/github.com/expr-lang/expr?status.svg)](https://godoc.org/github.com/expr-lang/expr)
+[![test](https://github.com/expr-lang/expr/actions/workflows/test.yml/badge.svg)](https://github.com/expr-lang/expr/actions/workflows/test.yml)
 
-**Expr** is a Go-centric expression language designed to deliver dynamic configurations with unparalleled accuracy, safety, and speed. 
+**Expr** is an expression language, implemented here in Rust, designed to deliver dynamic configurations with unparalleled accuracy, safety, and speed. 
 **Expr** combines simple [syntax](https://expr-lang.org/docs/language-definition) with powerful features for ease of use:
 
 ```js
@@ -25,7 +22,7 @@ all(tweets, len(.Content) <= 240)
 
 ## Features
 
-**Expr** is a safe, fast, and intuitive expression evaluator optimized for the Go language. 
+**Expr** is a safe, fast, and intuitive expression evaluator. 
 Here are its standout features:
 
 ### Safety and Isolation
@@ -33,16 +30,16 @@ Here are its standout features:
 * **Side-Effect-Free**: Expressions evaluated in Expr only compute outputs from their inputs, ensuring no side-effects that can change state or produce unintended results.
 * **Always Terminating**: Expr is designed to prevent infinite loops, ensuring that every program will conclude in a reasonable amount of time.
 
-### Go Integration
-* **Seamless with Go**: Integrate Expr into your Go projects without the need to redefine types.
+### Command Line
+* **One binary**: `expr` compiles and runs an expression against a JSON environment and prints the result, its type or the error.
 
 ### Static Typing
 * Ensures type correctness and prevents runtime type errors.
-  ```go
-  out, err := expr.Compile(`name + age`)
-  // err: invalid operation + (mismatched types string and int)
-  // | name + age
-  // | .....^
+  ```
+  $ expr -env '{"name": "Ann", "age": 31}' 'name + age'
+  invalid operation: + (mismatched types string and int) (1:6)
+   | name + age
+   | .....^
   ```
 
 ### User-Friendly
@@ -53,90 +50,53 @@ Here are its standout features:
 * **Built-in Functions**: Functions like `all`, `none`, `any`, `one`, `filter`, and `map` are provided out-of-the-box.
 
 ### Performance
-* **Optimized for Speed**: Expr stands out in its performance, utilizing an optimizing compiler and a bytecode virtual machine. Check out these [benchmarks](https://github.com/antonmedv/golang-expression-evaluation-comparison#readme) for more details.
+* **Optimized for Speed**: Expr stands out in its performance, utilizing an optimizing compiler and a bytecode virtual machine.
 
 ## Install
 
 ```
-go get github.com/expr-lang/expr
+cargo build --release
 ```
+
+The binary is `target/release/expr`; the library crate is `expr`.
 
 ## Documentation
 
-* See [Getting Started](https://expr-lang.org/docs/Getting-Started) page for developer documentation.
-* See [Language Definition](https://expr-lang.org/docs/language-definition) page to learn the syntax.
+* See the [Language Definition](docs/language-definition.md) to learn the syntax.
+* `expr -h` lists the command's flags: the environment (`-env`, `-env-file`), the expression file (`-file`), the
+  compile options (`-allow-undefined`, `-as`, `-warn-on-any`, `-no-optimize`, `-no-short-circuit`, `-disable-if`,
+  `-disable`, `-enable`, `-timezone`, `-max-nodes`), `-check` and the output format (`value`, `typed`, `json`).
 
 ## Examples
 
-[Play Online](https://go.dev/play/p/XCoNXEjm3TS)
+```
+$ expr -env '{"names": ["world", "you"]}' '"Hello, " + names[0] + "!"'
+Hello, world!
 
-```go
-package main
+$ expr -env '{"tweets": [{"len": 42}, {"len": 98}, {"len": 69}]}' 'all(tweets, .len <= 240)'
+true
 
-import (
-	"fmt"
-	"github.com/expr-lang/expr"
-)
-
-func main() {
-	env := map[string]interface{}{
-		"greet":   "Hello, %v!",
-		"names":   []string{"world", "you"},
-		"sprintf": fmt.Sprintf,
-	}
-
-	code := `sprintf(greet, names[0])`
-
-	program, err := expr.Compile(code, expr.Env(env))
-	if err != nil {
-		panic(err)
-	}
-
-	output, err := expr.Run(program, env)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(output)
-}
+$ expr -output typed 'map(1..3, # * 1.5)'
+[]interface {} [1.5 3 4.5]
 ```
 
-[Play Online](https://go.dev/play/p/tz-ZneBfSuw)
+From Rust:
 
-```go
-package main
+```rust
+use expr::{compile, run, Options};
+use expr::value::{sprint_v, Value};
 
-import (
-	"fmt"
-	"github.com/expr-lang/expr"
-)
+let program = compile(b"sum(1..10)", &Options::default()).unwrap();
+let out = run(&program, &Value::Nil).unwrap();
+assert_eq!(sprint_v(&out), b"55");
+```
 
-type Tweet struct {
-	Len int
-}
+## Testing
 
-type Env struct {
-	Tweets []Tweet
-}
-
-func main() {
-	code := `all(Tweets, {.Len <= 240})`
-
-	program, err := expr.Compile(code, expr.Env(Env{}))
-	if err != nil {
-		panic(err)
-	}
-
-	env := Env{
-		Tweets: []Tweet{{42}, {98}, {69}},
-	}
-	output, err := expr.Run(program, env)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(output)
-}
+```
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
 ```
 
 ## Who uses Expr?
@@ -178,4 +138,3 @@ func main() {
 
 [MIT](https://github.com/expr-lang/expr/blob/master/LICENSE)
 
-<p align="center"><img src="https://expr-lang.org/img/gopher-small.png" width="150" /></p>
